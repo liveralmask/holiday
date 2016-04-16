@@ -1,9 +1,10 @@
 var global = this;
 var g_ics_url = "https://www.google.com/calendar/ical/ja.japanese%23holiday%40group.v.calendar.google.com/public/basic.ics";
+ogas.cache.properties( PropertiesService.getScriptProperties() );
 
 function debug(){
   var response = global.run({});
-  if ( undefined !== response ) ogas.log.inf( response.getContent() );
+  if ( undefined !== response ) ogas.log.dbg( response.getContent() );
 }
 
 function doGet( e ){
@@ -55,17 +56,14 @@ function doGet( e ){
     var ics_len = ics.length;
     for ( var i = 0; i < ics_len; ++i ){
       var match = ogas.pattern.match( "action", ics[ i ] );
-      if ( null == match ) continue;
+      if ( null === match ) continue;
       
       params.match = match;
       var result = ogas.method.call( action, ogas.string.format( "on_{0}", match.value.name ), params );
       if ( undefined !== result ) params = result;
     }
     
-    var holidays_len = params.holidays.length;
-    for ( var i = 0; i < holidays_len; ++i ){
-      var holiday = params.holidays[ i ];
-      
+    ogas.array.each( params.holidays, function( holiday, i ){
       if ( ! ( holiday.year in _holidays ) ){
         _holidays[ holiday.year ] = {};
       }
@@ -74,7 +72,7 @@ function doGet( e ){
       }
       
       _holidays[ holiday.year ][ holiday.month ][ holiday.date ] = holiday.summary;
-    }
+    });
     return _holidays;
   };
 })(global.action = global.action || {});
@@ -87,16 +85,16 @@ global.run = function( request ){
 global.Application = function(){
   ogas.Application.call( this );
 };
-ogas.class.inherits( global.Application, ogas.Application );
+ogas.object.inherits( global.Application, ogas.Application );
 global.Application.prototype.start = function(){
   var spreadsheet_id = ogas.cache.get( "spreadsheet_id" );
-  if ( null == spreadsheet_id ){
+  if ( null === spreadsheet_id ){
     ogas.log.err( "Not found spreadsheet_id" );
     return;
   }
   
   var spreadsheet = ogas.spreadsheet.open( spreadsheet_id );
-  if ( null == spreadsheet ){
+  if ( null === spreadsheet ){
     ogas.log.err( "Spreadsheet open error id={0}", spreadsheet_id );
     return;
   }
@@ -118,7 +116,7 @@ global.Application.prototype.end = function(){
   
 };
 global.Application.prototype.on_sheet_rules = function( sheet ){
-  if ( "" == ogas.sheet.range( sheet, "A1" ).getValue() ){
+  if ( "" === ogas.sheet.range( sheet, "A1" ).getValue() ){
     ogas.sheet.add_row( sheet, [ "name", "pattern", "flags" ] );
     ogas.sheet.add_row( sheet, [ "begin_event", "BEGIN:VEVENT" ] );
     ogas.sheet.add_row( sheet, [ "target", "DTSTART;VALUE=DATE:([0-9]{4})([0-9]{2})([0-9]{2})" ] );
@@ -130,7 +128,7 @@ global.Application.prototype.on_sheet_rules = function( sheet ){
 };
 global.Application.prototype.on_sheet_response = function( sheet ){
   var value = ogas.sheet.range( sheet, "A1" ).getValue();
-  var response = ( "" == value ) ? {} : ogas.json.decode( value );
+  var response = ( "" === value ) ? {} : ogas.json.decode( value );
   var next_year = this.m_request.time.year() + 1;
   do{
     if ( ! ( "holidays" in response ) ) break;
